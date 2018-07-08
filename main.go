@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/superjinjo/catalyze-go/auth"
+	"github.com/superjinjo/catalyze-go/controllers"
 	"github.com/superjinjo/catalyze-go/users"
 	"github.com/urfave/negroni"
 )
@@ -16,7 +17,7 @@ func helloworld(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Hello World"})
 }
 
-func setupAuthRoutes(n *negroni.Negroni, middleware *auth.Middleware, router *mux.Router, con *auth.Controller) {
+func setupAuthRoutes(n *negroni.Negroni, middleware *controllers.Middleware, router *mux.Router, con *controllers.AuthController) {
 	//POST /auth
 	router.Handle("/auth", n.With(
 		negroni.Wrap(http.HandlerFunc(con.HandlePost)),
@@ -29,19 +30,31 @@ func setupAuthRoutes(n *negroni.Negroni, middleware *auth.Middleware, router *mu
 	)).Methods("DELETE")
 }
 
-func setupUserRoutes(n *negroni.Negroni, middleware *auth.Middleware, router *mux.Router, con *auth.Controller) {
-	// nauth := n.With(
-	// 	negroni.HandlerFunc(middleware.IsAuthenticated),
-	// 	negroni.HandlerFunc(middleware.CanManageUser),
-	// )
+func setupUserRoutes(n *negroni.Negroni, middleware *controllers.Middleware, router *mux.Router, con *controllers.UsersController) {
+	nauth := n.With(
+		negroni.HandlerFunc(middleware.IsAuthenticated),
+		negroni.HandlerFunc(middleware.CanManageUser),
+	)
 
 	//POST /user
+	router.Handle("/users", n.With(
+		negroni.Wrap(http.HandlerFunc(con.HandlePost)),
+	)).Methods("POST")
 
 	//GET /user/{username}
+	router.Handle("/users/{username}", nauth.With(
+		negroni.Wrap(http.HandlerFunc(con.HandleGet)),
+	)).Methods("GET")
 
 	//PUT /user/{username}
+	router.Handle("/users/{username}", nauth.With(
+		negroni.Wrap(http.HandlerFunc(con.HandlePut)),
+	)).Methods("PUT")
 
 	//DELETE /user/{username}
+	router.Handle("/users/{username}", nauth.With(
+		negroni.Wrap(http.HandlerFunc(con.HandleDelete)),
+	)).Methods("DELETE")
 }
 
 func main() {
@@ -52,32 +65,24 @@ func main() {
 	authRepo := &auth.Repository{DBuser: "catalyze", DBpw: "abcd1234", DBhost: "localhost", DBname: "catalyze"}
 	defer authRepo.Close()
 
-	middleware := &auth.Middleware{Auth: authRepo, Users: userRepo}
-	//userMW := negroni.HandlerFunc(middleware.CanManageUser)
+	middleware := &controllers.Middleware{Auth: authRepo, Users: userRepo}
 
 	router := mux.NewRouter()
 
 	n := negroni.Classic()
 
+	//GET /
 	router.Handle("/", n.With(
 		negroni.Wrap(http.HandlerFunc(helloworld)),
 	)).Methods("GET")
 
-	authCon := &auth.Controller{Auth: authRepo, Users: userRepo}
+	//Routes for /auth
+	authCon := &controllers.AuthController{Auth: authRepo, Users: userRepo}
 	setupAuthRoutes(n, middleware, router, authCon)
 
+	//Routes for /users
+	usersCon := &controllers.UsersController{Users: userRepo}
+	setupUserRoutes(n, middleware, router, usersCon)
+
 	http.ListenAndServe(":3000", router)
-
-	// data, err := repo.InsertUser("barney", "abcd1234", "Barney", "Rubles", "brown")
-	// fmt.Printf("data: %v, err: %v\n", data, err)
-
-	// if err == nil {
-	// 	id, err := repo.CheckCredentials("barney", "abcd1234")
-	// 	fmt.Printf("data: %v, err: %v\n", id, err)
-
-	// 	if err == nil {
-	// 		getdata, err := repo.GetUser("barney")
-	// 		fmt.Printf("data: %v, err: %v\n", getdata, err)
-	// 	}
-	// }
 }

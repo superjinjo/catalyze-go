@@ -11,11 +11,11 @@ import (
 
 //Model represents basic user data stored in database excluding the password
 type Model struct {
-	username  string
-	firstname string
-	lastname  string
-	color     string
-	id        int
+	Username  string
+	Firstname string
+	Lastname  string
+	Color     string
+	ID        int
 }
 
 //Repository handles getting and storing user data from database
@@ -41,7 +41,7 @@ func (repo *Repository) GetUser(username string) (Model, error) {
 		firstname, lastname, color string
 	)
 
-	row := db.QueryRow("SELECT id, firstname, lastname, color FROM users WHERE id = ?", id)
+	row := db.QueryRow("SELECT id, firstname, lastname, color FROM users WHERE username = ?", username)
 	if err := row.Scan(&id, &firstname, &lastname, &color); err != nil {
 		return data, err
 	}
@@ -60,7 +60,7 @@ func (repo *Repository) GetUsername(id int) (string, error) {
 		return "", err
 	}
 
-	row := db.QueryRow("SELECT id FROM users WHERE id = ?", id)
+	row := db.QueryRow("SELECT username FROM users WHERE id = ?", id)
 	if err := row.Scan(&username); err != nil {
 		if err == sql.ErrNoRows {
 			err = errors.New("User not found")
@@ -158,20 +158,20 @@ func (repo *Repository) UpdateUser(username, firstname, lastname, color string) 
 }
 
 //DeleteUser removes user from the database
-func (repo *Repository) DeleteUser(userID int) error {
+func (repo *Repository) DeleteUser(username string) error {
 	db, err := repo.getConnection()
 	if err != nil {
 		return err
 	}
 
-	stmt, err := db.Prepare("DELETE FROM users WHERE id = ?")
+	stmt, err := db.Prepare("DELETE FROM users WHERE username = ?")
 	if err != nil {
 		return err
 	}
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(userID)
+	_, err = stmt.Exec(username)
 
 	return err
 }
