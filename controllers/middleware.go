@@ -16,9 +16,8 @@ type Middleware struct {
 	token  string
 }
 
-//IsAuthenticated checks if user has valid token in HTTP request Authorization header
-func (authMW *Middleware) IsAuthenticated(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	var token, title, message string
+func (authMW *Middleware) setAuthData(r *http.Request) error {
+	var token string
 
 	token = r.Header.Get("Authorization")
 	if token != "" && authMW.token != token {
@@ -26,18 +25,30 @@ func (authMW *Middleware) IsAuthenticated(w http.ResponseWriter, r *http.Request
 			authMW.userID = userID
 			authMW.token = token
 		} else {
-			title = "Invalid Token"
-			message = "The token you provided is invalid or expired."
+			return Error{"Invalid Token", "The token you provided is invalid or expired."}
 		}
 	} else if token == "" {
-		title = "No Token"
-		message = "You did not provide an authentication token with your request."
+		return Error{"No Token", "You did not provide an authentication token with your request."}
 	}
+
+	return nil
+}
+
+//GetAuthUser returns the user id of the authorized user
+func (authMW *Middleware) GetAuthUser(r *http.Request) int {
+	authMW.setAuthData(r)
+
+	return authMW.userID
+}
+
+//IsAuthenticated checks if user has valid token in HTTP request Authorization header
+func (authMW *Middleware) IsAuthenticated(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	err := authMW.setAuthData(r)
 
 	logger.Println(authMW)
 
-	if authMW.userID == 0 {
-		writeResponse(w, 401, Error{title, message})
+	if err != nil {
+		WriteResponse(w, 401, err)
 	} else {
 		next(w, r)
 	}
@@ -63,6 +74,6 @@ func (authMW *Middleware) CanManageUser(w http.ResponseWriter, r *http.Request, 
 	}
 
 	if status != 0 {
-		writeResponse(w, status, userErr)
+		WriteResponse(w, status, userErr)
 	}
 }

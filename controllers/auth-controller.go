@@ -26,7 +26,7 @@ type AuthController struct {
 func (con *AuthController) HandlePost(w http.ResponseWriter, r *http.Request) {
 	var cred credentials
 	if err := json.NewDecoder(r.Body).Decode(&cred); err != nil {
-		writeResponse(w, 400, Error{"Malformed JSON", "The JSON in the response body was malformed."})
+		WriteResponse(w, 400, Error{"Malformed JSON", "The JSON in the response body was malformed."})
 		return
 	}
 
@@ -34,15 +34,15 @@ func (con *AuthController) HandlePost(w http.ResponseWriter, r *http.Request) {
 	logger.Println(cred)
 	logger.Println(con.Users.GetUser(cred.Username))
 	if err != nil {
-		writeResponse(w, 401, Error{"Invalid credentials", "The username and password were incorrect."})
+		WriteResponse(w, 401, Error{"Invalid credentials", "The username and password were incorrect."})
 		return
 	}
 
 	if token, err := con.Auth.CreateToken(userID, Tokenlife); err != nil {
-		writeResponse(w, 500, Error{"Create Error", "An unknown error occured when creating the token."})
+		WriteResponse(w, 500, Error{"Create Error", "An unknown error occured when creating the token."})
 	} else {
 		data := map[string]string{"token": token}
-		writeResponse(w, 201, data)
+		WriteResponse(w, 201, data)
 	}
 }
 
@@ -51,9 +51,9 @@ func (con *AuthController) HandleDelete(w http.ResponseWriter, r *http.Request) 
 	token := r.Header.Get("Authorization")
 
 	if err := con.Auth.DeleteToken(token); err != nil {
-		writeResponse(w, 400, Error{"Delete Error", "Problem invalidating token. It might already be invalid."})
+		WriteResponse(w, 400, Error{"Delete Error", "Problem invalidating token. It might already be invalid."})
 	} else {
 		data := map[string]string{"message": "Token has been successfully invalidated"}
-		writeResponse(w, 200, data)
+		WriteResponse(w, 200, data)
 	}
 }

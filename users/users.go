@@ -27,7 +27,7 @@ type Repository struct {
 	conn   *sql.DB
 }
 
-//GetUser gets full user data based on user id
+//GetUser gets full user data based on username
 func (repo *Repository) GetUser(username string) (Model, error) {
 	var data Model
 
@@ -43,6 +43,27 @@ func (repo *Repository) GetUser(username string) (Model, error) {
 
 	row := db.QueryRow("SELECT id, firstname, lastname, color FROM users WHERE username = ?", username)
 	if err := row.Scan(&id, &firstname, &lastname, &color); err != nil {
+		return data, err
+	}
+
+	data = Model{username, firstname, lastname, color, id}
+
+	return data, nil
+}
+
+//GetUserByID gets full user data based on user id
+func (repo *Repository) GetUserByID(id int) (Model, error) {
+	var data Model
+
+	db, err := repo.getConnection()
+	if err != nil {
+		return data, err
+	}
+
+	var username, firstname, lastname, color string
+
+	row := db.QueryRow("SELECT username, firstname, lastname, color FROM users WHERE id = ?", id)
+	if err := row.Scan(&username, &firstname, &lastname, &color); err != nil {
 		return data, err
 	}
 

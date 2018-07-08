@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/superjinjo/catalyze-go/auth"
@@ -11,10 +13,43 @@ import (
 	"github.com/urfave/negroni"
 )
 
+var logger = log.New(os.Stdout, "http: ", log.LstdFlags)
+
 func helloworld(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Hello World"})
+}
+
+func rootGetUser(w http.ResponseWriter, userID int, repo *users.Repository) {
+	user, err := repo.GetUserByID(userID)
+	logger.Println(user, err)
+	if err != nil {
+		controllers.WriteResponse(w, 500, controllers.Error{Title: "Get Error", Message: "An unknown error occured when getting the user."})
+	} else {
+		controllers.WriteResponse(w, 200, controllers.UserJSON{
+			ID:        user.ID,
+			Username:  user.Username,
+			Firstname: user.Firstname,
+			Lastname:  user.Lastname,
+			Color:     user.Color,
+		})
+	}
+}
+
+func setupRootRoutes(n *negroni.Negroni, middleware *controllers.Middleware, repo *users.Repository, router *mux.Router) {
+
+	//GET /
+	router.Handle("/", n.With(
+		negroni.Wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if userID := middleware.GetAuthUser(r); userID != 0 {
+				rootGetUser(w, userID, repo)
+			} else {
+				helloworld(w, r)
+			}
+			logger.Println(middleware)
+		})),
+	)).Methods("GET")
 }
 
 func setupAuthRoutes(n *negroni.Negroni, middleware *controllers.Middleware, router *mux.Router, con *controllers.AuthController) {
@@ -71,10 +106,8 @@ func main() {
 
 	n := negroni.Classic()
 
-	//GET /
-	router.Handle("/", n.With(
-		negroni.Wrap(http.HandlerFunc(helloworld)),
-	)).Methods("GET")
+	//Root route
+	setupRootRoutes(n, middleware, userRepo, router)
 
 	//Routes for /auth
 	authCon := &controllers.AuthController{Auth: authRepo, Users: userRepo}
