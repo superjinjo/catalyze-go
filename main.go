@@ -16,16 +16,32 @@ func helloworld(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Hello World"})
 }
 
-func setupAuthRoutes(n map[string]*negroni.Negroni, router *mux.Router, con *auth.Controller) {
+func setupAuthRoutes(n *negroni.Negroni, middleware *auth.Middleware, router *mux.Router, con *auth.Controller) {
 	//POST /auth
-	router.Handle("/auth", n["noauth"].With(
+	router.Handle("/auth", n.With(
 		negroni.Wrap(http.HandlerFunc(con.HandlePost)),
 	)).Methods("POST")
 
 	//DELETE /auth
-	router.Handle("/auth", n["auth"].With(
+	router.Handle("/auth", n.With(
+		negroni.HandlerFunc(middleware.IsAuthenticated),
 		negroni.Wrap(http.HandlerFunc(con.HandleDelete)),
 	)).Methods("DELETE")
+}
+
+func setupUserRoutes(n *negroni.Negroni, middleware *auth.Middleware, router *mux.Router, con *auth.Controller) {
+	// nauth := n.With(
+	// 	negroni.HandlerFunc(middleware.IsAuthenticated),
+	// 	negroni.HandlerFunc(middleware.CanManageUser),
+	// )
+
+	//POST /user
+
+	//GET /user/{username}
+
+	//PUT /user/{username}
+
+	//DELETE /user/{username}
 }
 
 func main() {
@@ -36,21 +52,19 @@ func main() {
 	authRepo := &auth.Repository{DBuser: "catalyze", DBpw: "abcd1234", DBhost: "localhost", DBname: "catalyze"}
 	defer authRepo.Close()
 
-	middleware := auth.Middleware{Auth: authRepo, Users: userRepo}
+	middleware := &auth.Middleware{Auth: authRepo, Users: userRepo}
 	//userMW := negroni.HandlerFunc(middleware.CanManageUser)
 
 	router := mux.NewRouter()
 
 	n := negroni.Classic()
-	np := n.With(negroni.HandlerFunc(middleware.IsAuthenticated))
-	nmap := map[string]*negroni.Negroni{"noauth": n, "auth": np}
 
 	router.Handle("/", n.With(
 		negroni.Wrap(http.HandlerFunc(helloworld)),
 	)).Methods("GET")
 
 	authCon := &auth.Controller{Auth: authRepo, Users: userRepo}
-	setupAuthRoutes(nmap, router, authCon)
+	setupAuthRoutes(n, middleware, router, authCon)
 
 	http.ListenAndServe(":3000", router)
 
