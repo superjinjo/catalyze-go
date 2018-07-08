@@ -1,27 +1,69 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	"net/http"
 
+	"github.com/gorilla/mux"
+	"github.com/superjinjo/catalyze-go/auth"
 	"github.com/superjinjo/catalyze-go/users"
+	"github.com/urfave/negroni"
 )
 
+func helloworld(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Hello World"})
+}
+
+func setupAuthRoutes(n map[string]*negroni.Negroni, router *mux.Router, con *auth.Controller) {
+	//POST /auth
+	router.Handle("/auth", n["noauth"].With(
+		negroni.Wrap(http.HandlerFunc(con.HandlePost)),
+	)).Methods("POST")
+
+	//DELETE /auth
+	router.Handle("/auth", n["auth"].With(
+		negroni.Wrap(http.HandlerFunc(con.HandleDelete)),
+	)).Methods("DELETE")
+}
+
 func main() {
-	fmt.Println("hello world")
 
-	repo := users.Repository{DBuser: "catalyze", DBpw: "abcd1234", DBhost: "localhost", DBname: "catalyze"}
-	defer repo.Close()
+	userRepo := &users.Repository{DBuser: "catalyze", DBpw: "abcd1234", DBhost: "localhost", DBname: "catalyze"}
+	defer userRepo.Close()
 
-	data, err := repo.InsertUser("barney", "abcd1234", "Barney", "Rubles", "brown")
-	fmt.Printf("data: %v, err: %v\n", data, err)
+	authRepo := &auth.Repository{DBuser: "catalyze", DBpw: "abcd1234", DBhost: "localhost", DBname: "catalyze"}
+	defer authRepo.Close()
 
-	if err == nil {
-		id, err := repo.CheckCredentials("barney", "abcd1234")
-		fmt.Printf("data: %v, err: %v\n", id, err)
+	middleware := auth.Middleware{Auth: authRepo, Users: userRepo}
+	//userMW := negroni.HandlerFunc(middleware.CanManageUser)
 
-		if err == nil {
-			getdata, err := repo.GetUser("barney")
-			fmt.Printf("data: %v, err: %v\n", getdata, err)
-		}
-	}
+	router := mux.NewRouter()
+
+	n := negroni.Classic()
+	np := n.With(negroni.HandlerFunc(middleware.IsAuthenticated))
+	nmap := map[string]*negroni.Negroni{"noauth": n, "auth": np}
+
+	router.Handle("/", n.With(
+		negroni.Wrap(http.HandlerFunc(helloworld)),
+	)).Methods("GET")
+
+	authCon := &auth.Controller{Auth: authRepo, Users: userRepo}
+	setupAuthRoutes(nmap, router, authCon)
+
+	http.ListenAndServe(":3000", router)
+
+	// data, err := repo.InsertUser("barney", "abcd1234", "Barney", "Rubles", "brown")
+	// fmt.Printf("data: %v, err: %v\n", data, err)
+
+	// if err == nil {
+	// 	id, err := repo.CheckCredentials("barney", "abcd1234")
+	// 	fmt.Printf("data: %v, err: %v\n", id, err)
+
+	// 	if err == nil {
+	// 		getdata, err := repo.GetUser("barney")
+	// 		fmt.Printf("data: %v, err: %v\n", getdata, err)
+	// 	}
+	// }
 }

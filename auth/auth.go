@@ -10,7 +10,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-const dateformat = "2006-01-02 15:04:05"
+//Dateformat is the format the date is stored in the database
+const Dateformat string = "2006-01-02 15:04:05"
 
 //Repository handles getting and storing user data from database
 type Repository struct {
@@ -35,8 +36,8 @@ func (repo *Repository) CreateToken(userID, lifespan int) (string, error) {
 	}
 
 	now := time.Now()
-	created := now.Format(dateformat)
-	expires := now.Add(time.Second * time.Duration(lifespan)).Format(dateformat)
+	created := now.Format(Dateformat)
+	expires := now.Add(time.Second * time.Duration(lifespan)).Format(Dateformat)
 
 	stmt, err := db.Prepare("INSERT INTO auth(token, user_id, created, expires) VALUES(?, ?, ?, ?)")
 	if err != nil {
@@ -73,7 +74,7 @@ func (repo *Repository) CheckToken(token string) (int, error) {
 		return 0, err
 	}
 
-	exp, _ := time.Parse(dateformat, expires)
+	exp, _ := time.Parse(Dateformat, expires)
 	if exp.Before(time.Now()) {
 		repo.DeleteToken(token)
 		return 0, errors.New("Token expired")
