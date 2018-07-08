@@ -51,8 +51,28 @@ func (repo *Repository) GetUser(username string) (Model, error) {
 	return data, nil
 }
 
-//GetID gets the user id associated with the given username and password
-func (repo *Repository) GetID(username, password string) (int, error) {
+//GetUsername gets the username associated with the given user id
+func (repo *Repository) GetUsername(id int) (string, error) {
+	var username string
+
+	db, err := repo.getConnection()
+	if err != nil {
+		return "", err
+	}
+
+	row := db.QueryRow("SELECT id FROM users WHERE id = ?", id)
+	if err := row.Scan(&username); err != nil {
+		if err == sql.ErrNoRows {
+			err = errors.New("User not found")
+		}
+		return "", err
+	}
+
+	return username, nil
+}
+
+//CheckCredentials checks the given username and password to see if they match in the database
+func (repo *Repository) CheckCredentials(username, password string) (int, error) {
 	var (
 		id       int
 		hashedpw string
@@ -112,6 +132,29 @@ func (repo *Repository) InsertUser(username, password, firstname, lastname, colo
 	}
 
 	return data, err
+}
+
+//UpdateUser updates the name and favorite color of the user with the given username
+func (repo *Repository) UpdateUser(username, firstname, lastname, color string) (Model, error) {
+	var data Model
+
+	db, err := repo.getConnection()
+	if err != nil {
+		return data, err
+	}
+
+	stmt, err := db.Prepare("UPDATE users SET firstname = ?, lastname = ?, color = ? WHERE username = ?")
+	if err != nil {
+		return data, err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(firstname, lastname, color, username)
+	if err != nil {
+		return data, err
+	}
+
+	return repo.GetUser(username)
 }
 
 //DeleteUser removes user from the database

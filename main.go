@@ -16,7 +16,7 @@ func main() {
 	fmt.Printf("data: %v, err: %v\n", data, err)
 
 	if err == nil {
-		id, err := repo.GetID("barney", "abcd1234")
+		id, err := repo.CheckCredentials("barney", "abcd1234")
 		fmt.Printf("data: %v, err: %v\n", id, err)
 
 		if err == nil {
