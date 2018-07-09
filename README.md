@@ -39,7 +39,7 @@ Example Output:
 ### DELETE /auth
 Invalidates access token that is in the Authorization header. No input necessary.
 
-### POST /user
+### POST /users
 Creates a new user.
 
 Example Input: 
@@ -52,7 +52,7 @@ Example Input:
       "color": "orange"
     }
 
-### GET /user/{username}
+### GET /users/{username}
 Access the user data of the given username. Authorized users can only only look at themselves, so this would be useful if there was support some sort of admin user. 
 
 Example Output: 
@@ -65,7 +65,7 @@ Example Output:
       "color": "white"
     }
     
-### PUT /user/{username}
+### PUT /users/{username}
 Updates the user with the given username. Authorized users can only update themselves for now.
 
 Example Input: 
@@ -76,5 +76,5 @@ Example Input:
       "color": "blue"
     }
     
-### DELETE /user/{username}
+### DELETE /users/{username}
 Deletes the user with the given username. All associated access tokens automatically get deleted as well. Authorized users can only delete themselves for now.
