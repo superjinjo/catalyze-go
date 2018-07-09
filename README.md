@@ -14,7 +14,7 @@ The following Go dependencies need to be installed:
 Once you have those installed, run the `db.sql` file on a MySQL database named "catalyze" and setup a username "catalyze" with a password of "abcd1234". I don't have a neat way to change the settings yet, unfortunately.
 
 ## Usage
-Make sure to include the `Authorize: <token>` header for all requests except for `POST /user`, `POST /auth`, and `GET /`.
+Make sure to include the `Authorization: <token>` header for all requests except for `POST /user`, `POST /auth`, and `GET /`.
 
 ### GET /
 - Accessing without the Authorize header will give you a "Hello World" message
