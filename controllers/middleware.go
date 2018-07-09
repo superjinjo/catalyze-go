@@ -10,42 +10,29 @@ import (
 
 //Middleware provides functions to check authentication and authorization
 type Middleware struct {
-	Auth   *auth.Repository
-	Users  *users.Repository
-	userID int
-	token  string
-}
-
-func (authMW *Middleware) setAuthData(r *http.Request) error {
-	var token string
-
-	token = r.Header.Get("Authorization")
-	if token != "" && authMW.token != token {
-		if userID, err := authMW.Auth.CheckToken(token); err == nil {
-			authMW.userID = userID
-			authMW.token = token
-		} else {
-			return Error{"Invalid Token", "The token you provided is invalid or expired."}
-		}
-	} else if token == "" {
-		return Error{"No Token", "You did not provide an authentication token with your request."}
-	}
-
-	return nil
+	Auth  *auth.Repository
+	Users *users.Repository
 }
 
 //GetAuthUser returns the user id of the authorized user
-func (authMW *Middleware) GetAuthUser(r *http.Request) int {
-	authMW.setAuthData(r)
+func (authMW *Middleware) GetAuthUser(r *http.Request) (int, error) {
+	var token string
 
-	return authMW.userID
+	token = r.Header.Get("Authorization")
+	if token != "" {
+		if userID, err := authMW.Auth.CheckToken(token); err == nil {
+			return userID, nil
+		} else {
+			return 0, Error{"Invalid Token", "The token you provided is invalid or expired."}
+		}
+	}
+
+	return 0, Error{"No Token", "You did not provide an authentication token with your request."}
 }
 
 //IsAuthenticated checks if user has valid token in HTTP request Authorization header
 func (authMW *Middleware) IsAuthenticated(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	err := authMW.setAuthData(r)
-
-	logger.Println(authMW)
+	_, err := authMW.GetAuthUser(r)
 
 	if err != nil {
 		WriteResponse(w, 401, err)
@@ -61,7 +48,8 @@ func (authMW *Middleware) CanManageUser(w http.ResponseWriter, r *http.Request, 
 	var status int
 
 	if username, ok := vars["username"]; ok == true {
-		authuser, err := authMW.Users.GetUsername(authMW.userID)
+		userID, _ := authMW.GetAuthUser(r)
+		authuser, err := authMW.Users.GetUsername(userID)
 		if err == nil && authuser == username {
 			next(w, r)
 		} else {

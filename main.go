@@ -42,12 +42,11 @@ func setupRootRoutes(n *negroni.Negroni, middleware *controllers.Middleware, rep
 	//GET /
 	router.Handle("/", n.With(
 		negroni.Wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if userID := middleware.GetAuthUser(r); userID != 0 {
+			if userID, err := middleware.GetAuthUser(r); err == nil {
 				rootGetUser(w, userID, repo)
 			} else {
 				helloworld(w, r)
 			}
-			logger.Println(middleware)
 		})),
 	)).Methods("GET")
 }
